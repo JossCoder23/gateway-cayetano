@@ -20,6 +20,9 @@ app.use(cors());
 app.use('/auth', createProxyMiddleware({
     target: process.env.AUTH_SERVICE_URL,
     changeOrigin: true,
+    pathRewrite: {
+        '^/auth': '', // Esto quita el "/auth" para que a Go le llegue solo "/login"
+    },
 }));
 
 app.get('/dev/mock-login', (req, res) => {
