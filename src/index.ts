@@ -58,14 +58,12 @@ app.use('/api', verifyToken, createProxyMiddleware({
     target: process.env.LEADS_SERVICE_URL,
     changeOrigin: true,
     on: {
-        error: (err, req, res) => {
-            console.error(`[Gateway Error] Fallo al conectar con Leads: ${err.message}`);
-            // Verificamos si 'res' es una respuesta HTTP y no un Socket
-            if ('writeHead' in res) {
-                res.writeHead(503, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ 
-                    error: 'El servicio de Leads/Events no está disponible en este momento.' 
-                }));
+        proxyReq: (proxyReq, req: any, res) => {
+            // Si el verifyToken guardó el usuario en req.user
+            if (req.user && req.user.user_id) {
+                // Inyectamos el ID en los headers que van hacia NestJS
+                proxyReq.setHeader('x-user-id', req.user.user_id);
+                proxyReq.setHeader('x-user-role', req.user.role);
             }
         }
     }
