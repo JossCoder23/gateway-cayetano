@@ -18,15 +18,16 @@ app.use(cors());
 // ==========================================
 // Todo lo que empiece con /auth va a Go. No pide token porque aquí se loguean.
 app.use('/auth', createProxyMiddleware({
-    target: process.env.AUTH_SERVICE_URL,
+    target: process.env.AUTH_SERVICE_URL, // http://go-auth.railway.internal:8081
     changeOrigin: true,
+    // IMPORTANTE: No uses pathRewrite si Go ya espera el prefijo /auth
+    // Si Go tiene r.POST("/auth/login"), deja esto así.
     on: {
+        proxyReq: (proxyReq, req, res) => {
+            console.log(`[Proxy] Reenviando ${req.method} ${req.url} a Auth Service`);
+        },
         error: (err, req, res) => {
-            console.error(`[Gateway Error] Auth Service inaccesible: ${err.message}`);
-            if ('writeHead' in res) {
-                res.writeHead(502, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Servicio de Autenticación no disponible' }));
-            }
+            console.error('[Proxy Error]:', err);
         }
     }
 }));
