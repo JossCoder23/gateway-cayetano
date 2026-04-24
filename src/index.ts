@@ -20,9 +20,15 @@ app.use(cors());
 app.use('/auth', createProxyMiddleware({
     target: process.env.AUTH_SERVICE_URL,
     changeOrigin: true,
-    pathRewrite: {
-        '^/auth': '', // Esto quita el "/auth" para que a Go le llegue solo "/login"
-    },
+    on: {
+        error: (err, req, res) => {
+            console.error(`[Gateway Error] Auth Service inaccesible: ${err.message}`);
+            if ('writeHead' in res) {
+                res.writeHead(502, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Servicio de Autenticación no disponible' }));
+            }
+        }
+    }
 }));
 
 app.get('/dev/mock-login', (req, res) => {
