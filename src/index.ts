@@ -60,6 +60,9 @@ app.get('/dev/mock-login', (req, res) => {
 app.use('/api', verifyToken, createProxyMiddleware({
     target: process.env.LEADS_SERVICE_URL,
     changeOrigin: true,
+    pathRewrite: {
+        '^/api': '/api', 
+    },
     on: {
         proxyReq: (proxyReq, req: any, res) => {
             // 1. Inyectar Headers de Identidad (SIEMPRE se hace)
