@@ -61,7 +61,7 @@ app.use('/api', verifyToken, createProxyMiddleware({
     target: process.env.LEADS_SERVICE_URL,
     changeOrigin: true,
     pathRewrite: {
-        '^/api': '/api', 
+        '^/api': '', 
     },
     on: {
         proxyReq: (proxyReq, req: any, res) => {
