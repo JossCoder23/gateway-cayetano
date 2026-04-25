@@ -11,6 +11,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 80;
 
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
 app.use(cors());
 
 // ==========================================
@@ -61,6 +64,16 @@ app.use('/api', verifyToken, createProxyMiddleware({
         proxyReq: (proxyReq, req: any, res) => {
             // Si el verifyToken guardó el usuario en req.user
             if (req.user && req.user.user_id) {
+                const userRole = (Array.isArray(req.user?.roles)) ? req.user.roles[0] : (req.user?.role || 'GUEST');
+                proxyReq.setHeader('X-User-Id', req.user?.user_id || 'anonymous');
+                proxyReq.setHeader('X-User-Role', String(userRole));
+
+                // Si el body ya fue parseado por otro middleware, hay que re-escribirlo
+                if (req.body && Object.keys(req.body).length) {
+                    const bodyData = JSON.stringify(req.body);
+                    proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+                    proxyReq.write(bodyData);
+                }
                 // Inyectamos el ID en los headers que van hacia NestJS
                 proxyReq.setHeader('x-user-id', req.user.user_id);
                 proxyReq.setHeader('x-user-role', req.user.role);
