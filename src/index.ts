@@ -62,30 +62,29 @@ app.use('/api', verifyToken, createProxyMiddleware({
     changeOrigin: true,
     on: {
         proxyReq: (proxyReq, req: any, res) => {
-            if (req.user && req.user.user_id) {
-                // 1. Calculamos el Rol de forma segura (Array o String)
+            // 1. Inyectar Headers de Identidad (SIEMPRE se hace)
+            if (req.user) {
                 const userRole = (Array.isArray(req.user.roles) && req.user.roles.length > 0) 
                     ? req.user.roles[0] 
                     : (req.user.role || 'GUEST');
 
-                // 2. Inyectamos los Headers (Normalizamos a minúsculas para NestJS)
-                proxyReq.setHeader('x-user-id', String(req.user.user_id));
+                proxyReq.setHeader('x-user-id', String(req.user.user_id || ''));
                 proxyReq.setHeader('x-user-role', String(userRole));
+            }
 
-                // 3. LOGICA CRÍTICA: Solo re-escribimos el body si NO es Multipart/File
-                const contentType = req.headers['content-type'] || '';
-                
-                if (
-                    !contentType.includes('multipart/form-data') && 
-                    req.body && 
-                    Object.keys(req.body).length > 0
-                ) {
-                    const bodyData = JSON.stringify(req.body);
-                    proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-                    proxyReq.write(bodyData);
-                }
-                // Si es multipart (Excel), NO hacemos proxyReq.write, 
-                // dejamos que el stream original pase directo.
+            // 2. LOGICA ANTI-ERROR 500:
+            // Si es un archivo (multipart), NO tocamos el body. 
+            // Esto evita que el proxy intente serializar el binario del Excel/CSV.
+            const contentType = req.headers['content-type'] || '';
+            if (contentType.includes('multipart/form-data')) {
+                return; // Salimos de la función y dejamos que el stream pase directo
+            }
+
+            // 3. Solo para peticiones JSON normales (como Login o Create)
+            if (req.body && Object.keys(req.body).length > 0) {
+                const bodyData = JSON.stringify(req.body);
+                proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+                proxyReq.write(bodyData);
             }
         }
     }
