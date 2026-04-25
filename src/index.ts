@@ -62,21 +62,30 @@ app.use('/api', verifyToken, createProxyMiddleware({
     changeOrigin: true,
     on: {
         proxyReq: (proxyReq, req: any, res) => {
-            // Si el verifyToken guardó el usuario en req.user
             if (req.user && req.user.user_id) {
-                const userRole = (Array.isArray(req.user?.roles)) ? req.user.roles[0] : (req.user?.role || 'GUEST');
-                proxyReq.setHeader('X-User-Id', req.user?.user_id || 'anonymous');
-                proxyReq.setHeader('X-User-Role', String(userRole));
+                // 1. Calculamos el Rol de forma segura (Array o String)
+                const userRole = (Array.isArray(req.user.roles) && req.user.roles.length > 0) 
+                    ? req.user.roles[0] 
+                    : (req.user.role || 'GUEST');
 
-                // Si el body ya fue parseado por otro middleware, hay que re-escribirlo
-                if (req.body && Object.keys(req.body).length) {
+                // 2. Inyectamos los Headers (Normalizamos a minúsculas para NestJS)
+                proxyReq.setHeader('x-user-id', String(req.user.user_id));
+                proxyReq.setHeader('x-user-role', String(userRole));
+
+                // 3. LOGICA CRÍTICA: Solo re-escribimos el body si NO es Multipart/File
+                const contentType = req.headers['content-type'] || '';
+                
+                if (
+                    !contentType.includes('multipart/form-data') && 
+                    req.body && 
+                    Object.keys(req.body).length > 0
+                ) {
                     const bodyData = JSON.stringify(req.body);
                     proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
                     proxyReq.write(bodyData);
                 }
-                // Inyectamos el ID en los headers que van hacia NestJS
-                proxyReq.setHeader('x-user-id', req.user.user_id);
-                proxyReq.setHeader('x-user-role', req.user.role);
+                // Si es multipart (Excel), NO hacemos proxyReq.write, 
+                // dejamos que el stream original pase directo.
             }
         }
     }
