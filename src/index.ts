@@ -25,6 +25,9 @@ app.use('/auth', createProxyMiddleware({
     changeOrigin: true,
     // IMPORTANTE: No uses pathRewrite si Go ya espera el prefijo /auth
     // Si Go tiene r.POST("/auth/login"), deja esto así.
+    pathRewrite: {
+        '^/auth': '', // Esto convierte /auth/login en /login
+    },
     on: {
         proxyReq: (proxyReq, req, res) => {
             console.log(`[Proxy] Reenviando ${req.method} ${req.url} a Auth Service`);
